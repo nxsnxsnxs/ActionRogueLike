@@ -26,7 +26,7 @@ public:
 protected:
 	UPROPERTY(VisibleAnywhere)
 	class USphereComponent* SphereComponent;
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	class UProjectileMovementComponent* ProjectileMovementComponent;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	class UParticleSystemComponent* ParticleSystemComponent;

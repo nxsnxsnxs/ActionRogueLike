@@ -42,11 +42,11 @@ void ABaseProjectile::BeginPlay()
 
 void ABaseProjectile::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-	if(ensure(HitVFX))
+	if(HitVFX)
 	{
 		UGameplayStatics::SpawnEmitterAtLocation(this, HitVFX, Hit.ImpactPoint);
 	}
-	if(ensure(HitSound))
+	if(HitSound)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, HitSound, Hit.ImpactPoint);
 	}

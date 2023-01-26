@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HealthPotion.h"
 #include "ActionRogueLike/ActionRogueLikeGameModeBase.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "AIArenaGameMode.generated.h"
@@ -22,12 +23,23 @@ public:
 	void TrySpawnEnemy();
 	UFUNCTION()
 	void EnemyKilled(class AMyAICharacter* Enemy, AActor* Killer);
+	UFUNCTION()
+	void TrySpawnHealthPotion();
+	UFUNCTION()
+	void SpawnHealthPotion(class UEnvQueryInstanceBlueprintWrapper* QueryInstance, EEnvQueryStatus::Type QueryStatus);
 	virtual void RestartPlayer(AController* NewPlayer) override;
 	UFUNCTION()
 	void PlayerDied(class AMyCharacter* PlayerCharacter, AActor* Killer);
 	UFUNCTION()
 	void RespawnPlayer(APlayerController* Player);
 protected:
+	FTimerHandle SpawnHealthPotionTimerHandle;
+	UPROPERTY(EditDefaultsOnly)
+	float SpawnHealthPotionInterval;
+	UPROPERTY(EditDefaultsOnly)
+	class UEnvQuery* SpawnHealthPotionEQS;
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<AHealthPotion> HealthPotionClass;
 	FTimerHandle SpawnEnemyTimerHandle;
 	UPROPERTY(EditDefaultsOnly)
 	class UEnvQuery* SpawnAIEQS;

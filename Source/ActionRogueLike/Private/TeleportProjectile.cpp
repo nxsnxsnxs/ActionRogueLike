@@ -3,15 +3,16 @@
 
 #include "TeleportProjectile.h"
 
+#include "AbilitySystemComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 ATeleportProjectile::ATeleportProjectile()
 {
-	ProjectileMovementComponent->InitialSpeed = 1000.0f;
-	ProjectileMovementComponent->MaxSpeed = 1000.0f;
-	ProjectileMovementComponent->ProjectileGravityScale = 0.25f;
+	ProjectileMovementComponent->InitialSpeed = 1200.0f;
+	ProjectileMovementComponent->MaxSpeed = 1200.0f;
+	ProjectileMovementComponent->ProjectileGravityScale = 0.0f;
 }
 
 void ATeleportProjectile::BeginPlay()
@@ -30,6 +31,13 @@ void ATeleportProjectile::Teleport()
 {
 	APawn* OwnerPlayer = GetInstigator();
 	OwnerPlayer->TeleportTo(GetActorLocation(), OwnerPlayer->GetActorRotation());
+	UAbilitySystemComponent* AbilitySystemComponent = Cast<UAbilitySystemComponent>(OwnerPlayer->GetComponentByClass(UAbilitySystemComponent::StaticClass()));
+	if(AbilitySystemComponent)
+	{
+		FGameplayEffectSpecHandle BounceArmorEffectSpecHandle = AbilitySystemComponent->MakeOutgoingSpec(BounceArmorEffectClass, 1, AbilitySystemComponent->MakeEffectContext());
+		BounceArmorEffectSpecHandle.Data->SetDuration(BounceArmorDuration, true);
+		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*BounceArmorEffectSpecHandle.Data.Get());
+	}
 	Destroy();
 }
 

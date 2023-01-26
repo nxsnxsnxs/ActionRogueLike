@@ -3,6 +3,7 @@
 
 #include "MyCharacter.h"
 
+#include "AbilitySystemBlueprintLibrary.h"
 #include "BaseProjectile.h"
 #include "CharacterAttributeComponent.h"
 #include "InteractComponent.h"
@@ -11,6 +12,8 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "AbilitySystemComponent.h"
+#include "GAS/MyCharacterAttributeSet.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -28,6 +31,8 @@ AMyCharacter::AMyCharacter()
 	InteractComponent = CreateDefaultSubobject<UInteractComponent>("InteractComp");
 	AttributeComponent = CreateDefaultSubobject<UCharacterAttributeComponent>("AttributeComp");
 
+	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>("AbilitySystemComp");
+
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	bUseControllerRotationYaw = false;
 }
@@ -35,15 +40,26 @@ AMyCharacter::AMyCharacter()
 void AMyCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	AttributeComponent->OnHealthChange.AddDynamic(this, &AMyCharacter::OnPlayerHealthChange);
-	AttributeComponent->OnDie.AddDynamic(this, &AMyCharacter::OnPlayerDie);
+	AttributeComponent->OnHealthChange.AddDynamic(this, &AMyCharacter::OnHealthChange);
+	AttributeComponent->OnDie.AddDynamic(this, &AMyCharacter::OnDie);
+
+	MyCharacterAttributeSet = Cast<UMyCharacterAttributeSet>(AbilitySystemComponent->GetAttributeSet(UMyCharacterAttributeSet::StaticClass()));
 }
 
 // Called when the game starts or when spawned
 void AMyCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	for(auto& [Name, AbilityClass] : CharacterAbilities)
+	{
+		CharacterAbilityHandles.Add(Name, AbilitySystemComponent->GiveAbility(AbilityClass));
+	}
+	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(MyCharacterAttributeSet->GetEnduranceAttribute()).AddUObject(this, &AMyCharacter::OnEnduranceChange);
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(MyCharacterAttributeSet->GetMovementSpeedAttribute()).AddUObject(this, &AMyCharacter::OnMovementSpeedChange);
+	AbilitySystemComponent->GetGameplayAttributeValueChangeDelegate(MyCharacterAttributeSet->GetRageValueAttribute()).AddUObject(this, &AMyCharacter::OnRageValueChange);
+	AbilitySystemComponent->OnGameplayEffectAppliedDelegateToSelf.AddUObject(this, &AMyCharacter::OnGetGameplayEffect);
 }
 
 void AMyCharacter::MoveForward(float axis)
@@ -62,28 +78,52 @@ void AMyCharacter::MoveRight(float axis)
 	AddMovementInput(UKismetMathLibrary::GetRightVector(CameraRot), axis);
 }
 
+void AMyCharacter::StartSprint()
+{
+	if(ensure(CharacterAbilityHandles.Find("Sprint")))
+	{
+		AbilitySystemComponent->TryActivateAbility(CharacterAbilityHandles["Sprint"]);
+	}
+}
+
+void AMyCharacter::StopSprint()
+{
+	if(ensure(CharacterAbilityHandles.Find("Sprint")))
+	{
+		AbilitySystemComponent->CancelAbilityHandle(CharacterAbilityHandles["Sprint"]);
+	}
+}
+
 void AMyCharacter::PrimaryAttack()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-	AMagicProjectile* MagicProjectile = Cast<AMagicProjectile>(SpawnProjectile(MagicProjectileClass, HandLocation));
-	if(ensure(MagicProjectile))
+	if(ensure(CharacterAbilityHandles.Find("PrimaryAttack")))
 	{
-		MagicProjectile->OnDamagedTarget.AddDynamic(this, &AMyCharacter::OnDoDamage);
-		UGameplayStatics::SpawnEmitterAtLocation(this, MagicProjectileCastingVFX, HandLocation);
-		UGameplayStatics::PlayWorldCameraShake(this, CameraShakeClass, HandLocation, 1, 10000);
+		AbilitySystemComponent->TryActivateAbility(CharacterAbilityHandles["PrimaryAttack"]);
 	}
 }
 
 void AMyCharacter::UltimateAttack()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-	SpawnProjectile(UltimateProjectileClass, HandLocation);
+	if(ensure(CharacterAbilityHandles.Find("UltimateAttack")))
+	{
+		AbilitySystemComponent->TryActivateAbility(CharacterAbilityHandles["UltimateAttack"]);
+	}
 }
 
-void AMyCharacter::TeleportSkill()
+void AMyCharacter::CharacterSkill()
 {
-	FVector HandLocation = GetMesh()->GetSocketLocation("Muzzle_01");
-	SpawnProjectile(TeleportProjectileClass, HandLocation);
+	if(ensure(CharacterAbilityHandles.Find("Teleport")))
+	{
+		AbilitySystemComponent->TryActivateAbility(CharacterAbilityHandles["Teleport"]);
+	}
+}
+
+void AMyCharacter::CharacterJump()
+{
+	if(ensure(CharacterAbilityHandles.Find("Jump")))
+	{
+		AbilitySystemComponent->TryActivateAbility(CharacterAbilityHandles["Jump"]);
+	}
 }
 
 AActor* AMyCharacter::SpawnProjectile(TSubclassOf<ABaseProjectile> ProjectileClass, FVector SpawnLocation)
@@ -115,31 +155,79 @@ AActor* AMyCharacter::SpawnProjectile(TSubclassOf<ABaseProjectile> ProjectileCla
 	return GetWorld()->SpawnActor<AActor>(ProjectileClass, SpawnTM, SpawnParameters);
 }
 
-void AMyCharacter::OnDoDamage(UCharacterAttributeComponent* Target, int Damage)
+void AMyCharacter::OnHealthChange(AActor* InstigateActor, int DeltaVal, int CurrHealth)
 {
-	OnCharacterDoDamage.Broadcast(Target, Damage);
-}
-
-void AMyCharacter::OnPlayerHealthChange(AActor* InstigateActor, int DeltaVal, int CurrHealth)
-{
+	//Get Damage
 	if(DeltaVal < 0)
 	{
-		UGameplayStatics::PlayWorldCameraShake(this, CameraShakeClass, GetActorLocation(), 1, 10000);
+		//Camera Shake
+		UGameplayStatics::PlayWorldCameraShake(this, GetHitCameraShakeClass, GetActorLocation(), 1, 10000);
+		//Add Rage
+		FGameplayEffectSpecHandle GESpecHandle = AbilitySystemComponent->MakeOutgoingSpec(GetDamageAddRageEffectClass, 1, AbilitySystemComponent->MakeEffectContext());
+		FGameplayEffectSpec* GESpec = GESpecHandle.Data.Get();
+		GESpec->SetSetByCallerMagnitude(RageAttributeTag, -DeltaVal);
+		AbilitySystemComponent->ApplyGameplayEffectSpecToSelf(*GESpec);
 	}
+	//Get Heal
 	else
 	{
 		
 	}
 }
-void AMyCharacter::OnPlayerDie(AActor* Killer)
+void AMyCharacter::OnDie(AActor* Killer)
 {
-	OnPlayerCharacterDie.Broadcast(this, Killer);
+	OnCharacterDie.Broadcast(this, Killer);
 	if(CharacterWidget)
 	{
 		CharacterWidget->RemoveFromParent();
 	}
 	DisableInput(Cast<APlayerController>(GetController()));
 	SetLifeSpan(8);
+}
+
+void AMyCharacter::OnEnduranceChange(const FOnAttributeChangeData& Data)
+{
+	OnCharacterEnduranceChange.Broadcast(Data.OldValue, Data.NewValue);
+	float Delta = Data.NewValue - Data.OldValue;
+	static FActiveGameplayEffectHandle TiredEffectHandle;
+	//Endurance Exhausted
+	if(!AbilitySystemComponent->GetActiveGameplayEffect(TiredEffectHandle) && Delta < 0 && Data.NewValue <= 1)
+	{
+		//Cancel Abilities
+		TArray<FGameplayTag> TiredEffectCancelAbilityWithTags;
+		TiredEffectCancelAbilityWithTags.Add(FGameplayTag::RequestGameplayTag("Endurance.NeedEndurance"));
+		FGameplayTagContainer TiredEffectCancelAbilityWithTagContainer = FGameplayTagContainer::CreateFromArray(TiredEffectCancelAbilityWithTags);
+		AbilitySystemComponent->CancelAbilities(&TiredEffectCancelAbilityWithTagContainer);
+		//Apply Tired Effect
+		TiredEffectHandle = AbilitySystemComponent->BP_ApplyGameplayEffectToSelf(TiredEffectClass, 1, AbilitySystemComponent->MakeEffectContext());
+	}
+	//Remove Tired Effect
+	else if(AbilitySystemComponent->GetActiveGameplayEffect(TiredEffectHandle) && Delta > 0 && Data.NewValue >= 0.5f * MyCharacterAttributeSet->GetMaxEndurance())
+	{
+		AbilitySystemComponent->RemoveActiveGameplayEffect(TiredEffectHandle);
+	}
+}
+
+void AMyCharacter::OnMovementSpeedChange(const FOnAttributeChangeData& Data)
+{
+	GetCharacterMovement()->MaxWalkSpeed = Data.NewValue;
+}
+
+void AMyCharacter::OnRageValueChange(const FOnAttributeChangeData& Data)
+{
+	OnCharacterRageValueChange.Broadcast(Data.OldValue, Data.NewValue);
+}
+
+void AMyCharacter::OnGetGameplayEffect(UAbilitySystemComponent* SourceComp, const FGameplayEffectSpec& GESpec,
+                                       FActiveGameplayEffectHandle ActiveGEHandle)
+{
+	FGameplayTagContainer GETags;
+	GESpec.GetAllAssetTags(GETags);
+	GESpec.GetAllGrantedTags(GETags);
+	if(GETags.HasTag(BuffTag))
+	{
+		OnCharacterGetBuff.Broadcast(SourceComp, GESpec, ActiveGEHandle);
+	}
 }
 
 // Called every frame
@@ -161,8 +249,16 @@ void AMyCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompone
 
 	PlayerInputComponent->BindAction("PrimaryAttack", IE_Pressed, this, &AMyCharacter::PrimaryAttack);
 	PlayerInputComponent->BindAction("UltimateAttack", IE_Pressed, this, &AMyCharacter::UltimateAttack);
-	PlayerInputComponent->BindAction("Skill", IE_Pressed, this, &AMyCharacter::TeleportSkill);
-	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
+	PlayerInputComponent->BindAction("Skill", IE_Pressed, this, &AMyCharacter::CharacterSkill);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &AMyCharacter::CharacterJump);
 	PlayerInputComponent->BindAction("Interact", IE_Pressed, InteractComponent, &UInteractComponent::Interact);
+	PlayerInputComponent->BindAction("Sprint", IE_Pressed, this, &AMyCharacter::StartSprint);
+	PlayerInputComponent->BindAction("Sprint", IE_Released, this, &AMyCharacter::StopSprint);
+}
+
+void AMyCharacter::DebugAddHealth(int Delta)
+{
+	UKismetSystemLibrary::PrintString(this, "Debug Add Health " + Delta);
+	AttributeComponent->ApplyHealthChange(Delta, this);
 }
 

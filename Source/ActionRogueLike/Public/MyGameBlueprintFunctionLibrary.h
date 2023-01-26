@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameplayEffect.h"
+#include "Components/Widget.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MyGameBlueprintFunctionLibrary.generated.h"
-
+class ABaseProjectile;
 /**
  * 
  */
@@ -15,4 +17,10 @@ class ACTIONROGUELIKE_API UMyGameBlueprintFunctionLibrary : public UBlueprintFun
 	GENERATED_BODY()
 	UFUNCTION(BlueprintCallable)
 	static int ApplyDamageWithImpulse(class UCharacterAttributeComponent* AttributeComponent, float DeltaVal, AActor* InstigateActor, const FHitResult& HitResult, float ImpulseVal);
+	UFUNCTION(BlueprintCallable)
+	static const UGameplayEffect* GetGameplayEffectFromSpec(const FGameplayEffectSpec& GESpec);
+	UFUNCTION(BlueprintCallable)
+	static UWidget* CreateEngineWidget(TSubclassOf<UWidget> WidgetClass, UUserWidget* WidgetOuter);
+	UFUNCTION(BlueprintCallable)
+	static bool CanActivateAbilityByHandle(UAbilitySystemComponent* ASC, FGameplayAbilitySpecHandle AbilitySpecHandle);
 };

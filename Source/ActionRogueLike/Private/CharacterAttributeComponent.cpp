@@ -58,7 +58,7 @@ int UCharacterAttributeComponent::ApplyHealthChange(float DeltaVal, AActor* Inst
 	{
 		return 0;
 	}
-	DeltaVal *= DebugDamageMultiplier.GetValueOnGameThread();
+	DeltaVal *= CVarDebugDamageMultiplier.GetValueOnGameThread();
 	float PrevHealth = Health;
 	Health += DeltaVal;
 	Health = UKismetMathLibrary::FClamp(Health, 0, MaxHealth);

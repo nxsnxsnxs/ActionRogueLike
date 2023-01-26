@@ -3,7 +3,11 @@
 
 #include "MyGameBlueprintFunctionLibrary.h"
 
+#include "AbilitySystemComponent.h"
 #include "CharacterAttributeComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "Blueprint/WidgetTree.h"
+#include "Kismet/GameplayStatics.h"
 
 int UMyGameBlueprintFunctionLibrary::ApplyDamageWithImpulse(UCharacterAttributeComponent* AttributeComponent,
                                                             float DeltaVal, AActor* InstigateActor, const FHitResult& HitResult, float ImpulseVal)
@@ -19,4 +23,29 @@ int UMyGameBlueprintFunctionLibrary::ApplyDamageWithImpulse(UCharacterAttributeC
 		}
 	}
 	return ActualDamage;
+}
+
+const UGameplayEffect* UMyGameBlueprintFunctionLibrary::GetGameplayEffectFromSpec(const FGameplayEffectSpec& GESpec)
+{
+	return GESpec.Def.Get();
+}
+
+UWidget* UMyGameBlueprintFunctionLibrary::CreateEngineWidget(TSubclassOf<UWidget> WidgetClass, UUserWidget* WidgetOuter)
+{
+	return WidgetOuter->WidgetTree->ConstructWidget<UWidget>(WidgetClass);
+}
+
+bool UMyGameBlueprintFunctionLibrary::CanActivateAbilityByHandle(UAbilitySystemComponent* ASC,
+	FGameplayAbilitySpecHandle AbilitySpecHandle)
+{
+	if(ensure(ASC))
+	{
+		FGameplayAbilitySpec* AbilitySpec = ASC->FindAbilitySpecFromHandle(AbilitySpecHandle);
+		if(ensure(AbilitySpec))
+		{
+			UGameplayAbility* Ability = AbilitySpec->Ability;
+			return Ability->CanActivateAbility(AbilitySpecHandle, ASC->AbilityActorInfo.Get());
+		}
+	}
+	return false;
 }

@@ -29,4 +29,12 @@ protected:
 	class UStaticMeshComponent* StaticMeshComponent;
 	UPROPERTY(VisibleAnywhere)
 	class URadialForceComponent* RadialForceComponent;
+	UPROPERTY(EditDefaultsOnly)
+	class UParticleSystem* ExplodeParticle;
+	UPROPERTY(EditDefaultsOnly)
+	class USoundBase* ExplodeSound;
+	UPROPERTY(EditDefaultsOnly)
+	float ExplodeRadius;
+	UPROPERTY(EditDefaultsOnly)
+	float ExplodeDamage;
 };

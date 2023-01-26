@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "BaseProjectile.h"
+#include "GameplayEffect.h"
 #include "TeleportProjectile.generated.h"
 
 /**
@@ -23,6 +24,10 @@ public:
 protected:
 	virtual void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit) override;
 protected:
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UGameplayEffect> BounceArmorEffectClass;
+	UPROPERTY(EditDefaultsOnly)
+	float BounceArmorDuration;
 	UPROPERTY(EditDefaultsOnly, meta=(ToolTip="Seconds Before Explode After Throw"))
 	float ExplodeTime;
 	UPROPERTY(EditDefaultsOnly, meta=(ToolTip="Seconds Between Explode And Teleport"))

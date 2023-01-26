@@ -65,8 +65,7 @@ void AMinion::OnHealthChange(AActor* InstigateActor, int DeltaVal, int CurrHealt
 			HealthWidget = CreateWidget<UWorldUserWidget>(GetWorld(), HealthWidgetClass);
 			if(HealthWidget != nullptr)
 			{
-				HealthWidget->AttachedActor = this;
-				HealthWidget->WorldOffset = FVector(0, 0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight());
+				HealthWidget->Init(this, FVector(0, 0, GetCapsuleComponent()->GetScaledCapsuleHalfHeight()));
 				HealthWidget->AddToViewport();
 			}
 		}

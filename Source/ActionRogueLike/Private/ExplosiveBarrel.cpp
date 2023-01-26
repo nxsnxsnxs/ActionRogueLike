@@ -3,6 +3,9 @@
 
 #include "ExplosiveBarrel.h"
 
+#include "CharacterAttributeComponent.h"
+#include "MagicProjectile.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "PhysicsEngine/RadialForceComponent.h"
 
@@ -29,12 +32,35 @@ void AExplosiveBarrel::BeginPlay()
 void AExplosiveBarrel::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	FVector NormalImpulse, const FHitResult& Hit)
 {
-	Explode();
+	if(OtherActor->IsA(AMagicProjectile::StaticClass()))
+	{
+		Explode();
+	}
 }
 
 void AExplosiveBarrel::Explode()
 {
 	RadialForceComponent->FireImpulse();
+	UGameplayStatics::SpawnEmitterAtLocation(this, ExplodeParticle, GetActorLocation());
+	UGameplayStatics::SpawnSoundAtLocation(this, ExplodeSound, GetActorLocation());
+	//DoDamage
+	TArray<TEnumAsByte<EObjectTypeQuery>> QueryTypes;
+	QueryTypes.Add(EObjectTypeQuery::ObjectTypeQuery3);
+	TArray<AActor*> IgnoredActors;
+	IgnoredActors.Add(this);
+	TArray<AActor*> ResultActors;
+	if(UKismetSystemLibrary::SphereOverlapActors(this, GetActorLocation(), ExplodeRadius, QueryTypes, nullptr, IgnoredActors, ResultActors))
+	{
+		for(AActor* TargetActor : ResultActors)
+		{
+			UCharacterAttributeComponent* TargetAttributeComponent = TargetActor->FindComponentByClass<UCharacterAttributeComponent>();
+			if(TargetAttributeComponent)
+			{
+				TargetAttributeComponent->ApplyHealthChange(-ExplodeDamage, this);
+			}
+		}
+	}
+	Destroy();
 }
 
 // Called every frame

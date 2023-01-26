@@ -15,8 +15,10 @@ class ACTIONROGUELIKE_API UWorldUserWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
+	UFUNCTION(BlueprintCallable)
+	void Init(AActor* _AttachedActor, FVector _WorldOffset);
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
-public:
+protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	AActor* AttachedActor;
 	UPROPERTY(EditDefaultsOnly)

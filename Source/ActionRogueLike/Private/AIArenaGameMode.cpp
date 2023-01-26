@@ -14,6 +14,7 @@ void AAIArenaGameMode::StartPlay()
 	Super::StartPlay();
 	FTimerManager& TimerManager = GetWorld()->GetTimerManager();
 	TimerManager.SetTimer(SpawnEnemyTimerHandle, this, &AAIArenaGameMode::TrySpawnEnemy, 5.0f, true);
+	TimerManager.SetTimer(SpawnHealthPotionTimerHandle, this, &AAIArenaGameMode::TrySpawnHealthPotion, SpawnHealthPotionInterval, true);
 
 	UUserWidget* MainHUD = CreateWidget<UUserWidget>(GetWorld(), MainHUDClass);
 	MainHUD->AddToViewport();
@@ -54,6 +55,25 @@ void AAIArenaGameMode::EnemyKilled(AMyAICharacter* Enemy, AActor* Killer)
 	EnemyCollection.RemoveSwap(Enemy);
 }
 
+void AAIArenaGameMode::TrySpawnHealthPotion()
+{
+	UEnvQueryInstanceBlueprintWrapper* EQSInstance = UEnvQueryManager::RunEQSQuery(this, SpawnHealthPotionEQS, this, EEnvQueryRunMode::RandomBest25Pct, nullptr);
+	EQSInstance->GetOnQueryFinishedEvent().AddDynamic(this, &AAIArenaGameMode::SpawnHealthPotion);
+}
+
+void AAIArenaGameMode::SpawnHealthPotion(UEnvQueryInstanceBlueprintWrapper* QueryInstance,
+	EEnvQueryStatus::Type QueryStatus)
+{
+	if(QueryStatus == EEnvQueryStatus::Success)
+	{
+		TArray<FVector> SpawnLocations;
+		if(QueryInstance->GetQueryResultsAsLocations(SpawnLocations))
+		{
+			GetWorld()->SpawnActor<AHealthPotion>(HealthPotionClass, SpawnLocations[0] + FVector(0, 0, 20), FRotator::ZeroRotator);
+		}
+	}
+}
+
 void AAIArenaGameMode::RestartPlayer(AController* NewPlayer)
 {
 	Super::RestartPlayer(NewPlayer);
@@ -63,7 +83,7 @@ void AAIArenaGameMode::RestartPlayer(AController* NewPlayer)
 		AMyCharacter* PlayerCharacter = Cast<AMyCharacter>(NewPlayer->GetPawn());
 		if(PlayerCharacter)
 		{
-			PlayerCharacter->OnPlayerCharacterDie.AddDynamic(this, &AAIArenaGameMode::PlayerDied);
+			PlayerCharacter->OnCharacterDie.AddDynamic(this, &AAIArenaGameMode::PlayerDied);
 		}
 	}
 }

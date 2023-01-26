@@ -17,30 +17,10 @@ UInteractComponent::UInteractComponent()
 
 void UInteractComponent::Interact()
 {
-	FVector EyeLocation;
-	FRotator EyeRotation;
-	AActor* Owner = GetOwner();
-	Owner->GetActorEyesViewPoint(EyeLocation, EyeRotation);
-	FVector End = EyeLocation + EyeRotation.Vector() * InteractRange;
-	
-	FCollisionObjectQueryParams QueryParams;
-	QueryParams.AddObjectTypesToQuery(ECC_WorldStatic);
-
-	float InteractSize = 30.0f;
-	FCollisionShape CollisionShape;
-	CollisionShape.SetSphere(InteractSize);
-	
-	FHitResult HitResult;
-	GetWorld()->SweepSingleByObjectType(HitResult, EyeLocation, End, FQuat::Identity, QueryParams, CollisionShape);
-	if(HitResult.bBlockingHit)
+	if(FocusedActor)
 	{
-		DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, InteractSize, 32, FColor::Red, false, 2.0f, 0, 2.0f);
-		if(HitResult.GetActor()->Implements<UInteractable>())
-		{
-			IInteractable::Execute_Interact(HitResult.GetActor(), Cast<APawn>(Owner));
-		}
+		IInteractable::Execute_Interact(FocusedActor, Cast<APawn>(GetOwner()));
 	}
-	
 }
 
 
@@ -53,12 +33,60 @@ void UInteractComponent::BeginPlay()
 	
 }
 
+void UInteractComponent::CheckInteract()
+{
+	FocusedActor = nullptr;
+	
+	FVector EyeLocation;
+	FRotator EyeRotation;
+	AActor* Owner = GetOwner();
+	Owner->GetActorEyesViewPoint(EyeLocation, EyeRotation);
+	FVector End = EyeLocation + EyeRotation.Vector() * InteractRange;
+	
+	FCollisionObjectQueryParams QueryParams;
+	QueryParams.AddObjectTypesToQuery(InteractChannel);
+	
+	FCollisionShape CollisionShape;
+	CollisionShape.SetSphere(InteractRadius);
+	
+	FHitResult HitResult;
+	GetWorld()->SweepSingleByObjectType(HitResult, EyeLocation, End, FQuat::Identity, QueryParams, CollisionShape);
+	if(HitResult.bBlockingHit)
+	{
+		if(CVarDebugShowInteractTrace->GetBool())
+		{
+			DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, InteractRadius, 32, FColor::Red, false, 2.0f, 0, 2.0f);
+		}
+		if(HitResult.GetActor()->Implements<UInteractable>())
+		{
+			FocusedActor = HitResult.GetActor();
+			if(!TipWidget && ensure(TipWidgetClass))
+			{
+				TipWidget = CreateWidget<UWorldUserWidget>(GetWorld(), TipWidgetClass);
+			}
+			if(!TipWidget->IsInViewport())
+			{
+				TipWidget->Init(FocusedActor, FVector::Zero());
+				TipWidget->AddToViewport();
+			}
+		}
+		else if(TipWidget)
+		{
+			TipWidget->RemoveFromParent();
+		}
+	}
+	else if(TipWidget)
+	{
+		TipWidget->RemoveFromParent();
+	}
+}
+
 
 // Called every frame
 void UInteractComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	// ...
+	CheckInteract();
 }
 

@@ -17,7 +17,15 @@ public:
 	ABlackHoleProjectile();
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable)
+	void Explode();
 protected:
-	UPROPERTY(VisibleAnywhere)
+	virtual void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit) override;
+protected:
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite)
+	int Damage;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	class URadialForceComponent* RadialForceComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TArray<AActor*> SwallowedActors;
 };

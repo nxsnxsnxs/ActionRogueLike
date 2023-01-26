@@ -7,9 +7,19 @@
 
 #include "Blueprint/WidgetLayoutLibrary.h"
 
+void UWorldUserWidget::Init(AActor* _AttachedActor, FVector _WorldOffset)
+{
+	AttachedActor = _AttachedActor;
+	WorldOffset = _WorldOffset;
+}
+
 void UWorldUserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+	if(!ensure(AttachedActor))
+	{
+		return;
+	}
 	FVector WorldLocation = AttachedActor->GetActorLocation() + WorldOffset;
 	FVector2d ScreenPos;
 	if(UGameplayStatics::ProjectWorldToScreen(GetOwningPlayer(), WorldLocation, ScreenPos))

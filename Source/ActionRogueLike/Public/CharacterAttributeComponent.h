@@ -7,9 +7,9 @@
 #include "CharacterAttributeComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHealthChangeSignature, AActor*, InstigateActor, int, DeltaVal, int, CurrHealth);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnCharacterDieSignature, AActor*, Damager);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDieSignature, AActor*, Damager);
 
-static TAutoConsoleVariable<float> DebugDamageMultiplier(TEXT("mygame_DebugDamageMultiplier"), 1.0f, TEXT("Multiplier for all damage in game"), ECVF_Cheat);
+static TAutoConsoleVariable<float> CVarDebugDamageMultiplier(TEXT("mygame_DebugDamageMultiplier"), 1.0f, TEXT("Multiplier for all damage in game"), ECVF_Cheat);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class ACTIONROGUELIKE_API UCharacterAttributeComponent : public UActorComponent
@@ -40,7 +40,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnHealthChangeSignature OnHealthChange;
 	UPROPERTY(BlueprintAssignable)
-	FOnCharacterDieSignature OnDie;
+	FOnDieSignature OnDie;
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float Health;
